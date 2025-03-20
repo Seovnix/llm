@@ -11,8 +11,8 @@ openai_key = st.secrets["openai_key"]
 # Configuration de l'API OpenAI
 client = OpenAI(api_key=openai_key)
 
-# Charger le modèle de sentiment
-sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual-sentiment-analysis")
+# Charger le modèle de sentiment avec une longueur maximale
+sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual-sentiment-analysis", max_length=512, truncation=True)
 
 def obtenir_reponse(question):
     completion = client.chat.completions.create(
