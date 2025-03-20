@@ -98,7 +98,7 @@ def synthese_marques(analyses):
                 marques_count[marque_mentionnee] = 1
 
     # Garder les 3 marques les plus mentionnées en plus de la marque principale
-    top_marques = sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:3]
+    top_marques = sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:9]
     return {marque: count for marque, count in top_marques}
 
 def synthese_elements_semantiques(analyses):
