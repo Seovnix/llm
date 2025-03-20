@@ -1,6 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from transformers import pipeline
+import ast
 
 # Charger les secrets depuis le fichier secrets.toml
 openai_key = st.secrets["openai_key"]
@@ -26,7 +27,10 @@ def extraire_marques(texte):
         messages=[{"role": "user", "content": prompt_marques}],
         temperature=0
     )
-    return eval(completion.choices[0].message.content)
+    try:
+        return ast.literal_eval(completion.choices[0].message.content)
+    except (SyntaxError, ValueError):
+        return []
 
 def extraire_elements_semantiques(texte):
     prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne moi la liste sous ce format : ["prix", "taille", "qualité"].
@@ -36,7 +40,10 @@ def extraire_elements_semantiques(texte):
         messages=[{"role": "user", "content": prompt_elements}],
         temperature=0
     )
-    return eval(completion.choices[0].message.content)
+    try:
+        return ast.literal_eval(completion.choices[0].message.content)
+    except (SyntaxError, ValueError):
+        return []
 
 def analyser_reponse(reponse, marque):
     # Analyse de sentiment
@@ -59,6 +66,18 @@ def analyser_reponse(reponse, marque):
         "elements_semantiques": elements_semantiques
     }
 
+def comparer_sentiments(analyses, marque):
+    sentiments = {"positive": 0, "neutral": 0, "negative": 0}
+    for analyse in analyses:
+        if marque.lower() in analyse["marques_mentionnees"]:
+            if analyse["sentiment"] == "positive":
+                sentiments["positive"] += 1
+            elif analyse["sentiment"] == "neutral":
+                sentiments["neutral"] += 1
+            else:
+                sentiments["negative"] += 1
+    return sentiments
+
 # Interface Streamlit
 st.title("Analyse des Réponses des LLM")
 
@@ -67,14 +86,27 @@ marque = st.text_input("Entrez la marque à analyser :")
 
 if st.button("Analyser"):
     questions_list = questions.split('\n')
-    for question in questions_list:
-        if question.strip():
-            st.write(f"**Question :** {question}")
-            reponse = obtenir_reponse(question)
-            st.write(f"**Réponse :** {reponse}")
-            analyse = analyser_reponse(reponse, marque)
-            st.write("**Analyse :**")
-            st.write(f"- Marque mentionnée : {analyse['mention_marque']}")
-            st.write(f"- Sentiment : {analyse['sentiment']}")
-            st.write(f"- Marques mentionnées : {', '.join(analyse['marques_mentionnees'])}")
-            st.write(f"- Éléments sémantiques : {', '.join(analyse['elements_semantiques'])}")
+    analyses = []
+
+    with st.spinner('Analyse en cours...'):
+        for question in questions_list:
+            if question.strip():
+                reponse = obtenir_reponse(question)
+                analyse = analyser_reponse(reponse, marque)
+                analyses.append(analyse)
+
+    st.success("Analyse terminée !")
+
+    for i, analyse in enumerate(analyses):
+        st.write(f"**Analyse de la question {i+1} :**")
+        st.write(f"- Marque mentionnée : {'Oui' if analyse['mention_marque'] else 'Non'}")
+        st.write(f"- Sentiment : {analyse['sentiment']}")
+        st.write(f"- Marques mentionnées : {', '.join(analyse['marques_mentionnees'])}")
+        st.write(f"- Éléments sémantiques : {', '.join(analyse['elements_semantiques'])}")
+
+    # Comparaison des sentiments
+    sentiments = comparer_sentiments(analyses, marque)
+    st.write("**Comparaison des sentiments pour votre marque :**")
+    st.write(f"- Positif : {sentiments['positive']}")
+    st.write(f"- Neutre : {sentiments['neutral']}")
+    st.write(f"- Négatif : {sentiments['negative']}")
