@@ -94,7 +94,7 @@ def synthese_marques(analyses, marque):
     return {marque: count for marque, count in top_marques}
 
 # Interface Streamlit
-st.image("SlayLLM.jpg", width=200)
+st.image("GRM-Nexus-16_9.png", width=200)
 st.title("Analyse des Réponses des LLM")
 
 questions = st.text_area("Entrez vos questions (une par ligne) :")
