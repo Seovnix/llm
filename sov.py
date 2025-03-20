@@ -18,12 +18,12 @@ def obtenir_reponse(question):
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": question}],
-        temperature=1
+        temperature=0.2
     )
     return completion.choices[0].message.content
 
 def generer_questions(marque):
-    prompt_questions = f"""Trouve le secteur de cette marque et identifie les tops questions que les internautes peuvent se poser en 2025 sur la thématique de ses produits ou services: {marque}. Fais en fonction de ce que les internautes cherchent le plus sur Google. Les questions ne doivent pas être liées directement à la marque mais plutôt à son secteur."""
+    prompt_questions = f"""Génère 3 questions associées à la marque : {marque} et 2 questions associées à son secteur."""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_questions}]
@@ -113,6 +113,25 @@ def synthese_elements_semantiques(analyses):
     top_elements = sorted(elements_count.items(), key=lambda x: x[1], reverse=True)[:10]
     return {element: count for element, count in top_elements}
 
+def classifier_intention(question):
+    prompt_intention = f"""Classifie la question suivante dans l'une des catégories suivantes : [Recherche], [Support], [Comparaison], [Achat].
+    Question : {question}"""
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt_intention}],
+        temperature=0
+    )
+    return completion.choices[0].message.content.strip()
+
+def analyse_avis(marque):
+    prompt_avis = f"""Donne un avis sur la marque : {marque} avec une répartition entre avantages et inconvénients. Cours et précis."""
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt_avis}],
+        temperature=0
+    )
+    return completion.choices[0].message.content
+
 # Interface Streamlit
 st.image("SlayLLM.jpg", width=200)
 st.title("Analyse des Réponses des LLM")
@@ -159,6 +178,33 @@ if mode == "Entrer le nom d'une marque":
             st.write("**Synthèse globale des sentiments :**")
             st.bar_chart(sentiments)
 
+            # Market Share
+            total_mentions = sum(top_marques.values())
+            market_share = {marque: (count / total_mentions) * 100 for marque, count in top_marques.items()}
+            st.write("**Market Share :**")
+            st.bar_chart(market_share)
+
+            # Camembert de Market Share Distribution
+            labels = list(market_share.keys())
+            sizes = list(market_share.values())
+            fig, ax = plt.subplots()
+            ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+            ax.set_title("Répartition des mentions des marques")
+            st.pyplot(fig)
+
+            # Distribution des intentions
+            intentions = {"Recherche": 0, "Support": 0, "Comparaison": 0, "Achat": 0}
+            for question, _ in analyses:
+                intention = classifier_intention(question)
+                intentions[intention] += 1
+            st.write("**Distribution des intentions :**")
+            st.bar_chart(intentions)
+
+            # Analyse des avis
+            avis = analyse_avis(marque)
+            st.write("**Analyse des avis :**")
+            st.write(avis)
+
             # Affichage des analyses détaillées
             st.write("**Détails des analyses :**")
             for i, (question, analyse) in enumerate(analyses):
@@ -199,6 +245,28 @@ elif mode == "Entrer manuellement une liste de questions":
         sentiments = comparer_sentiments([a for q, a in analyses])
         st.write("**Synthèse globale des sentiments :**")
         st.bar_chart(sentiments)
+
+        # Market Share
+        total_mentions = sum(top_marques.values())
+        market_share = {marque: (count / total_mentions) * 100 for marque, count in top_marques.items()}
+        st.write("**Market Share :**")
+        st.bar_chart(market_share)
+
+        # Camembert de Market Share Distribution
+        labels = list(market_share.keys())
+        sizes = list(market_share.values())
+        fig, ax = plt.subplots()
+        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+        ax.set_title("Répartition des mentions des marques")
+        st.pyplot(fig)
+
+        # Distribution des intentions
+        intentions = {"Recherche": 0, "Support": 0, "Comparaison": 0, "Achat": 0}
+        for question, _ in analyses:
+            intention = classifier_intention(question)
+            intentions[intention] += 1
+        st.write("**Distribution des intentions :**")
+        st.bar_chart(intentions)
 
         # Affichage des analyses détaillées
         st.write("**Détails des analyses :**")
