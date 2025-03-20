@@ -3,6 +3,7 @@ from openai import OpenAI
 from transformers import pipeline
 import ast
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Charger les secrets depuis le fichier secrets.toml
 openai_key = st.secrets["openai_key"]
@@ -127,6 +128,7 @@ if st.button("Analyser"):
     st.pyplot(fig)
 
     # Affichage des analyses détaillées
+    st.write("**Détails des analyses :**")
     for i, (question, analyse) in enumerate(analyses):
         st.write(f"**Analyse de la question {i+1} :** {question}")
         st.write(f"- Marque mentionnée : {'Oui' if analyse['mention_marque'] else 'Non'}")
