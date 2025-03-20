@@ -79,6 +79,19 @@ def comparer_sentiments(analyses, marque):
                 sentiments["negative"] += 1
     return sentiments
 
+def synthese_marques(analyses, marque):
+    marques_count = {}
+    for analyse in analyses:
+        for marque_mentionnee in analyse["marques_mentionnees"]:
+            if marque_mentionnee in marques_count:
+                marques_count[marque_mentionnee] += 1
+            else:
+                marques_count[marque_mentionnee] = 1
+
+    # Garder les 5 marques les plus mentionnées
+    top_marques = sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:5]
+    return {marque: count for marque, count in top_marques}
+
 # Interface Streamlit
 st.title("Analyse des Réponses des LLM")
 
@@ -94,26 +107,29 @@ if st.button("Analyser"):
             if question.strip():
                 reponse = obtenir_reponse(question)
                 analyse = analyser_reponse(reponse, marque)
-                analyses.append(analyse)
+                analyses.append((question, analyse))
 
     st.success("Analyse terminée !")
 
-    for i, analyse in enumerate(analyses):
-        st.write(f"**Analyse de la question {i+1} :**")
+    # Synthèse globale
+    top_marques = synthese_marques([a for q, a in analyses], marque)
+    st.write("**Synthèse des marques mentionnées :**")
+    st.bar_chart(top_marques)
+
+    # Comparaison des sentiments
+    sentiments = comparer_sentiments([a for q, a in analyses], marque)
+    st.write("**Comparaison des sentiments pour votre marque :**")
+
+    # Graphique en camembert pour les sentiments
+    fig, ax = plt.subplots()
+    ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['green', 'gray', 'red'])
+    ax.set_title("Répartition des sentiments pour votre marque")
+    st.pyplot(fig)
+
+    # Affichage des analyses détaillées
+    for i, (question, analyse) in enumerate(analyses):
+        st.write(f"**Analyse de la question {i+1} :** {question}")
         st.write(f"- Marque mentionnée : {'Oui' if analyse['mention_marque'] else 'Non'}")
         st.write(f"- Sentiment : {analyse['sentiment']}")
         st.write(f"- Marques mentionnées : {', '.join(analyse['marques_mentionnees'])}")
         st.write(f"- Éléments sémantiques : {', '.join(analyse['elements_semantiques'])}")
-
-    # Comparaison des sentiments
-    sentiments = comparer_sentiments(analyses, marque)
-    st.write("**Comparaison des sentiments pour votre marque :**")
-
-    # Création d'un graphique à barres
-    fig, ax = plt.subplots()
-    ax.bar(sentiments.keys(), sentiments.values(), color=['green', 'gray', 'red'])
-    ax.set_title("Sentiments pour votre marque")
-    ax.set_xlabel("Sentiment")
-    ax.set_ylabel("Nombre de mentions")
-
-    st.pyplot(fig)
