@@ -3,6 +3,7 @@ from openai import OpenAI
 from transformers import pipeline
 import ast
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Charger les secrets depuis le fichier secrets.toml
 openai_key = st.secrets["openai_key"]
@@ -121,11 +122,15 @@ if st.button("Analyser"):
     sentiments = comparer_sentiments([a for q, a in analyses], marque)
     st.write("**Comparaison des sentiments pour votre marque :**")
 
-    # Graphique en camembert pour les sentiments
-    fig, ax = plt.subplots()
-    ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['green', 'gray', 'red'])
-    ax.set_title("Répartition des sentiments pour votre marque")
-    st.pyplot(fig)
+    # Vérification des valeurs NaN
+    if any(np.isnan(list(sentiments.values()))):
+        st.error("Erreur : Les données de sentiment contiennent des valeurs manquantes.")
+    else:
+        # Graphique en camembert pour les sentiments
+        fig, ax = plt.subplots()
+        ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['green', 'gray', 'red'])
+        ax.set_title("Répartition des sentiments pour votre marque")
+        st.pyplot(fig)
 
     # Affichage des analyses détaillées
     st.write("**Détails des analyses :**")
