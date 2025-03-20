@@ -17,7 +17,7 @@ sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual
 def obtenir_reponse(question):
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": question}]
+        messages=[{"role": "user", "content": question}],
         temperature=0,2
     )
     return completion.choices[0].message.content
