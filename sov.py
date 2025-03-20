@@ -1,42 +1,42 @@
 import streamlit as st
-import openai
+from openai import OpenAI
 from transformers import pipeline
 
 # Charger les secrets depuis le fichier secrets.toml
 openai_key = st.secrets["openai_key"]
 
 # Configuration de l'API OpenAI
-openai.api_key = openai_key
+client = OpenAI(api_key=openai_key)
 
 # Charger le modèle de sentiment
 sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual-sentiment-analysis")
 
 def obtenir_reponse(question):
-    response = openai.ChatCompletion.create(
+    completion = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": question}]
     )
-    return response.choices[0].message['content']
+    return completion.choices[0].message.content
 
 def extraire_marques(texte):
     prompt_marques = f"""Identifie les marques dans ce texte et donne moi la liste sous ce format : ["marque1", "marque2"].
     Texte : {texte}"""
-    response = openai.ChatCompletion.create(
+    completion = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt_marques}],
         temperature=0
     )
-    return eval(response.choices[0].message['content'])
+    return eval(completion.choices[0].message.content)
 
 def extraire_elements_semantiques(texte):
     prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne moi la liste sous ce format : ["prix", "taille", "qualité"].
     Texte : {texte}"""
-    response = openai.ChatCompletion.create(
+    completion = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt_elements}],
         temperature=0
     )
-    return eval(response.choices[0].message['content'])
+    return eval(completion.choices[0].message.content)
 
 def analyser_reponse(reponse, marque):
     # Analyse de sentiment
