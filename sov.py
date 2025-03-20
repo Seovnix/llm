@@ -22,7 +22,7 @@ def obtenir_reponse(question):
     return completion.choices[0].message.content
 
 def generer_questions(marque):
-    prompt_questions = f"""Génère 5 questions pertinentes sur la marque {marque}."""
+    prompt_questions = f"""Génère 5 questions pertinentes sur la marque {marque} et son univers/secteur (générique)."""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_questions}]
@@ -108,7 +108,10 @@ def synthese_elements_semantiques(analyses):
                 elements_count[element] += 1
             else:
                 elements_count[element] = 1
-    return elements_count
+
+    # Trier les éléments sémantiques par ordre décroissant et garder le top 10
+    top_elements = sorted(elements_count.items(), key=lambda x: x[1], reverse=True)[:10]
+    return {element: count for element, count in top_elements}
 
 # Interface Streamlit
 st.image("SlayLLM.jpg", width=200)
@@ -147,16 +150,6 @@ if marque:
         top_elements = synthese_elements_semantiques([a for q, a in analyses])
         st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
         st.bar_chart(top_elements)
-
-        # Synthèse des sentiments pour la marque principale et max 3 autres marques
-        marques_a_analyser = [marque] + list(top_marques.keys())
-        for marque_analyse in marques_a_analyser:
-            sentiments = comparer_sentiments([a for q, a in analyses], marque_analyse)
-            st.write(f"**Répartition des sentiments pour {marque_analyse}**")
-            fig, ax = plt.subplots()
-            ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['darkgreen', 'green', 'gray', 'orange', 'red'])
-            ax.set_title(f"Sentiments pour {marque_analyse}")
-            st.pyplot(fig)
 
         # Affichage des analyses détaillées
         st.write("**Détails des analyses :**")
