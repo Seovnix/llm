@@ -84,7 +84,7 @@ def synthese_elements_semantiques(analyses):
     return dict(sorted(elements_count.items(), key=lambda x: x[1], reverse=True)[:5])
 
 # Interface Streamlit
-st.image("GRM-Nexus-16_9.png", width=200)
+st.image("GRM-Nexus-16_9.png", width=500)
 st.title("Analyse des Réponses des LLM")
 
 questions = st.text_area("Entrez vos questions (une par ligne) :")
