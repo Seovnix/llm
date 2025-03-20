@@ -23,7 +23,7 @@ def obtenir_reponse(question):
     return completion.choices[0].message.content
 
 def generer_questions(marque):
-    prompt_questions = f"""Génère 3 questions associés à la marque : {marque} et 2 questions associés à son secteur. """
+    prompt_questions = f"""Génère 3 questions associées à la marque : {marque} et 2 questions associées à son secteur."""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_questions}]
@@ -31,7 +31,7 @@ def generer_questions(marque):
     return completion.choices[0].message.content.split("\n")
 
 def extraire_marques(texte):
-    prompt_marques = f"""Identifie les marques dans ce texte et donne moi la liste sous ce format : ["marque1", "marque2"].
+    prompt_marques = f"""Identifie les marques dans ce texte et donne-moi la liste sous ce format : ["marque1", "marque2"].
     Texte : {texte}"""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -44,7 +44,7 @@ def extraire_marques(texte):
         return []
 
 def extraire_elements_semantiques(texte):
-    prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne moi la liste sous ce format : ["prix", "taille", "qualité"].
+    prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne-moi la liste sous ce format : ["prix", "taille", "qualité"].
     Texte : {texte}"""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -151,6 +151,11 @@ if marque:
         top_elements = synthese_elements_semantiques([a for q, a in analyses])
         st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
         st.bar_chart(top_elements)
+
+        # Synthèse des sentiments
+        sentiments = comparer_sentiments([a for q, a in analyses], marque)
+        st.write("**Synthèse des sentiments pour la marque principale :**")
+        st.bar_chart(sentiments)
 
         # Affichage des analyses détaillées
         st.write("**Détails des analyses :**")
