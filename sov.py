@@ -117,26 +117,70 @@ def synthese_elements_semantiques(analyses):
 st.image("SlayLLM.jpg", width=200)
 st.title("Analyse des Réponses des LLM")
 
-marque = st.text_input("Entrez la marque à analyser :")
-if marque:
-    questions = generer_questions(marque)
-    st.write("**Questions générées :**")
-    for question in questions:
-        st.write(f"- {question}")
+mode = st.radio("Choisissez le mode d'entrée :", ("Entrer le nom d'une marque", "Entrer manuellement une liste de questions"))
 
-    # Permettre à l'utilisateur de modifier les questions
-    st.write("**Modifier les questions :**")
-    modified_questions = st.text_area("Modifiez ou ajoutez des questions (une par ligne) :", "\n".join(questions))
-    modified_questions_list = modified_questions.split("\n")
+if mode == "Entrer le nom d'une marque":
+    marque = st.text_input("Entrez la marque à analyser :")
+    if marque:
+        questions = generer_questions(marque)
+        st.write("**Questions générées :**")
+        for question in questions:
+            st.write(f"- {question}")
+
+        # Permettre à l'utilisateur de modifier les questions
+        st.write("**Modifier les questions :**")
+        modified_questions = st.text_area("Modifiez ou ajoutez des questions (une par ligne) :", "\n".join(questions))
+        modified_questions_list = modified_questions.split("\n")
+
+        if st.button("Analyser"):
+            analyses = []
+
+            with st.spinner('Analyse en cours...'):
+                for question in modified_questions_list:
+                    if question.strip():
+                        reponse = obtenir_reponse(question)
+                        analyse = analyser_reponse(reponse, marque)
+                        analyses.append((question, analyse))
+
+            st.success("Analyse terminée !")
+
+            # Synthèse globale
+            top_marques = synthese_marques([a for q, a in analyses])
+            st.write("**Synthèse des marques mentionnées :**")
+            st.bar_chart(top_marques)
+
+            # Synthèse des éléments sémantiques
+            top_elements = synthese_elements_semantiques([a for q, a in analyses])
+            st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
+            st.bar_chart(top_elements)
+
+            # Synthèse des sentiments globale
+            sentiments = comparer_sentiments([a for q, a in analyses])
+            st.write("**Synthèse globale des sentiments :**")
+            st.bar_chart(sentiments)
+
+            # Affichage des analyses détaillées
+            st.write("**Détails des analyses :**")
+            for i, (question, analyse) in enumerate(analyses):
+                st.write(f"**Analyse de la question {i+1} :** {question}")
+                st.write(f"- Marque mentionnée : {'Oui' if analyse['mention_marque'] else 'Non'}")
+                st.write(f"- Sentiment : {analyse['sentiment']}")
+                st.write(f"- Marques mentionnées : {', '.join(analyse['marques_mentionnees'])}")
+                st.write(f"- Éléments sémantiques : {', '.join(analyse['elements_semantiques'])}")
+
+elif mode == "Entrer manuellement une liste de questions":
+    st.write("**Entrez vos questions (une par ligne) :**")
+    questions = st.text_area("Questions :")
+    questions_list = questions.split("\n")
 
     if st.button("Analyser"):
         analyses = []
 
         with st.spinner('Analyse en cours...'):
-            for question in modified_questions_list:
+            for question in questions_list:
                 if question.strip():
                     reponse = obtenir_reponse(question)
-                    analyse = analyser_reponse(reponse, marque)
+                    analyse = analyser_reponse(reponse, "")
                     analyses.append((question, analyse))
 
         st.success("Analyse terminée !")
