@@ -23,7 +23,7 @@ def obtenir_reponse(question):
     return completion.choices[0].message.content
 
 def generer_questions(marque):
-    prompt_questions = f"""Trouve le secteur de cette marque et identifie les tops questions que les internautes peuvent se poser en 2025 sur la thématique de ses produits ou services: {marque}. Fais en fonction de ce que les internautes cherchent le plus sur Google"""
+    prompt_questions = f"""Trouve le secteur de cette marque et identifie les tops questions que les internautes peuvent se poser en 2025 sur la thématique de ses produits ou services: {marque}. Fais en fonction de ce que les internautes cherchent le plus sur Google. Les questions ne doivent pas être liées directement à la marque mais plutôt à son secteur."""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_questions}]
