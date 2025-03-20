@@ -81,11 +81,10 @@ def analyser_reponse(reponse, marque):
         "elements_semantiques": elements_semantiques
     }
 
-def comparer_sentiments(analyses, marque):
+def comparer_sentiments(analyses):
     sentiments = {"Very Positive": 0, "Positive": 0, "Neutral": 0, "Negative": 0, "Very Negative": 0}
     for analyse in analyses:
-        if marque.lower() in analyse["marques_mentionnees"]:
-            sentiments[analyse["sentiment"]] += 1
+        sentiments[analyse["sentiment"]] += 1
     return sentiments
 
 def synthese_marques(analyses):
@@ -97,7 +96,7 @@ def synthese_marques(analyses):
             else:
                 marques_count[marque_mentionnee] = 1
 
-    # Garder les 3 marques les plus mentionnées en plus de la marque principale
+    # Garder les 9 marques les plus mentionnées
     top_marques = sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:9]
     return {marque: count for marque, count in top_marques}
 
@@ -152,9 +151,9 @@ if marque:
         st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
         st.bar_chart(top_elements)
 
-        # Synthèse des sentiments
-        sentiments = comparer_sentiments([a for q, a in analyses], marque)
-        st.write("**Synthèse des sentiments pour la marque principale :**")
+        # Synthèse des sentiments globale
+        sentiments = comparer_sentiments([a for q, a in analyses])
+        st.write("**Synthèse globale des sentiments :**")
         st.bar_chart(sentiments)
 
         # Affichage des analyses détaillées
