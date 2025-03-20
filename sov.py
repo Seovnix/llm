@@ -2,8 +2,14 @@ import streamlit as st
 import openai
 from transformers import pipeline
 
+# Charger les secrets depuis le fichier secrets.toml
+openai_key = st.secrets["openai_key"]
+whitelist_users = st.secrets["whitelist"]["users"]
+db_user = st.secrets["database"]["user"]
+db_password = st.secrets["database"]["password"]
+
 # Configuration de l'API OpenAI
-openai.api_key = 'VOTRE_CLE_API_OPENAI'
+openai.api_key = openai_key
 
 # Charger le modèle de sentiment
 sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual-sentiment-analysis")
