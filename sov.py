@@ -60,12 +60,14 @@ def analyser_reponse(reponse, marque):
         "elements_semantiques": elements_semantiques
     }
 
-def comparer_sentiments(analyses, marque):
-    sentiments = {"positive": 0, "neutral": 0, "negative": 0}
+def comparer_sentiments_par_marque(analyses):
+    sentiments_par_marque = {}
     for analyse in analyses:
-        if marque.lower() in analyse["marques_mentionnees"]:
-            sentiments[analyse["sentiment"]] += 1
-    return sentiments
+        for marque in analyse["marques_mentionnees"]:
+            if marque not in sentiments_par_marque:
+                sentiments_par_marque[marque] = {"Very Negative": 0, "Negative": 0, "Neutral": 0, "Positive": 0, "Very Positive": 0}
+            sentiments_par_marque[marque][analyse["sentiment"]] += 1
+    return sentiments_par_marque
 
 def synthese_marques(analyses):
     marques_count = {}
@@ -74,8 +76,15 @@ def synthese_marques(analyses):
             marques_count[marque_mentionnee] = marques_count.get(marque_mentionnee, 0) + 1
     return dict(sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:5])
 
+def synthese_elements_semantiques(analyses):
+    elements_count = {}
+    for analyse in analyses:
+        for element in analyse["elements_semantiques"]:
+            elements_count[element] = elements_count.get(element, 0) + 1
+    return dict(sorted(elements_count.items(), key=lambda x: x[1], reverse=True)[:5])
+
 # Interface Streamlit
-st.image("SlayLLM.jpg", width=200)
+st.image("GRM-Nexus-16_9.png", width=200)
 st.title("Analyse des Réponses des LLM")
 
 questions = st.text_area("Entrez vos questions (une par ligne) :")
@@ -101,18 +110,22 @@ if st.button("Analyser"):
     else:
         st.write("Aucune marque mentionnée.")
 
-    # Comparaison des sentiments
-    sentiments = comparer_sentiments([a for _, a in analyses], marque)
-    st.write("**Comparaison des sentiments pour votre marque :**")
-
-    # Vérification des valeurs NaN et affichage du graphique
-    values = np.array(list(sentiments.values()))
-    if np.isnan(values).any() or values.sum() == 0:
-        st.error("Erreur : Pas de données valides pour générer un graphique.")
+    # Synthèse des éléments sémantiques
+    top_elements_semantiques = synthese_elements_semantiques([a for _, a in analyses])
+    st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
+    if top_elements_semantiques:
+        st.bar_chart(top_elements_semantiques)
     else:
+        st.write("Aucun élément sémantique mentionné.")
+
+    # Comparaison des sentiments par marque
+    sentiments_par_marque = comparer_sentiments_par_marque([a for _, a in analyses])
+    st.write("**Synthèse du sentiment pour chaque marque :**")
+    for marque, sentiments in sentiments_par_marque.items():
+        st.write(f"**{marque}**")
         fig, ax = plt.subplots()
-        ax.pie(values, labels=sentiments.keys(), autopct='%1.1f%%', colors=['green', 'gray', 'red'])
-        ax.set_title("Répartition des sentiments pour votre marque")
+        ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['darkred', 'red', 'gray', 'lightgreen', 'green'])
+        ax.set_title(f"Sentiments pour {marque}")
         st.pyplot(fig)
 
     # Affichage des analyses détaillées
