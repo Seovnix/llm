@@ -2,6 +2,7 @@ import streamlit as st
 from openai import OpenAI
 from transformers import pipeline
 import ast
+import matplotlib.pyplot as plt
 
 # Charger les secrets depuis le fichier secrets.toml
 openai_key = st.secrets["openai_key"]
@@ -107,6 +108,12 @@ if st.button("Analyser"):
     # Comparaison des sentiments
     sentiments = comparer_sentiments(analyses, marque)
     st.write("**Comparaison des sentiments pour votre marque :**")
-    st.write(f"- Positif : {sentiments['positive']}")
-    st.write(f"- Neutre : {sentiments['neutral']}")
-    st.write(f"- Négatif : {sentiments['negative']}")
+
+    # Création d'un graphique à barres
+    fig, ax = plt.subplots()
+    ax.bar(sentiments.keys(), sentiments.values(), color=['green', 'gray', 'red'])
+    ax.set_title("Sentiments pour votre marque")
+    ax.set_xlabel("Sentiment")
+    ax.set_ylabel("Nombre de mentions")
+
+    st.pyplot(fig)
