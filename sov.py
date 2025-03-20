@@ -56,9 +56,13 @@ def extraire_elements_semantiques(texte):
         return []
 
 def analyser_reponse(reponse, marque):
-    # Analyse de sentiment
-    sentiment_result = sentiment_model(reponse)[0]
-    sentiment = sentiment_result['label']
+    try:
+        # Analyse de sentiment
+        sentiment_result = sentiment_model(reponse)[0]
+        sentiment = sentiment_result['label']
+    except Exception as e:
+        st.error(f"Erreur lors de l'analyse de sentiment : {e}")
+        sentiment = "Erreur"
 
     # Extraction des marques
     marques_mentionnees = extraire_marques(reponse)
@@ -107,7 +111,7 @@ def synthese_elements_semantiques(analyses):
     return elements_count
 
 # Interface Streamlit
-st.image("GRM-Nexus-16_9.png", width=200)
+st.image("SlayLLM.jpg", width=200)
 st.title("Analyse des Réponses des LLM")
 
 marque = st.text_input("Entrez la marque à analyser :")
@@ -117,14 +121,20 @@ if marque:
     for question in questions:
         st.write(f"- {question}")
 
+    # Permettre à l'utilisateur de modifier les questions
+    st.write("**Modifier les questions :**")
+    modified_questions = st.text_area("Modifiez ou ajoutez des questions (une par ligne) :", "\n".join(questions))
+    modified_questions_list = modified_questions.split("\n")
+
     if st.button("Analyser"):
         analyses = []
 
         with st.spinner('Analyse en cours...'):
-            for question in questions:
-                reponse = obtenir_reponse(question)
-                analyse = analyser_reponse(reponse, marque)
-                analyses.append((question, analyse))
+            for question in modified_questions_list:
+                if question.strip():
+                    reponse = obtenir_reponse(question)
+                    analyse = analyser_reponse(reponse, marque)
+                    analyses.append((question, analyse))
 
         st.success("Analyse terminée !")
 
