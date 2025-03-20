@@ -22,7 +22,7 @@ def obtenir_reponse(question):
     return completion.choices[0].message.content
 
 def generer_questions(marque):
-    prompt_questions = f"""Génère 5 questions pertinentes sur la marque {marque}. Ajoute toujours une question sur quelle est la meilleure marque du secteur associé a cette marque"""
+    prompt_questions = f"""Génère 5 questions pertinentes sur le seceteur de la marque {marque}. Les questions doivent être pertinente et réaliste en fcontion de ce que pourrait vraiment se poser un utilisateur à propos de ce secteur ou de cette marque. Ex: Marque = NEspresso ; Question = Quel est la meilleur marque de machin à café ?"""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_questions}]
