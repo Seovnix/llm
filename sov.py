@@ -48,19 +48,11 @@ def extraire_elements_semantiques(texte):
         return []
 
 def analyser_reponse(reponse, marque):
-    # Analyse de sentiment
     sentiment_result = sentiment_model(reponse)[0]
     sentiment = sentiment_result['label']
-
-    # Extraction des marques
     marques_mentionnees = extraire_marques(reponse)
-
-    # Extraction des éléments sémantiques
     elements_semantiques = extraire_elements_semantiques(reponse)
-
-    # Analyse simple pour démonstration
     mention_marque = marque.lower() in reponse.lower()
-
     return {
         "mention_marque": mention_marque,
         "sentiment": sentiment,
@@ -72,63 +64,54 @@ def comparer_sentiments(analyses, marque):
     sentiments = {"positive": 0, "neutral": 0, "negative": 0}
     for analyse in analyses:
         if marque.lower() in analyse["marques_mentionnees"]:
-            if analyse["sentiment"] == "positive":
-                sentiments["positive"] += 1
-            elif analyse["sentiment"] == "neutral":
-                sentiments["neutral"] += 1
-            else:
-                sentiments["negative"] += 1
+            sentiments[analyse["sentiment"]] += 1
     return sentiments
 
-def synthese_marques(analyses, marque):
+def synthese_marques(analyses):
     marques_count = {}
     for analyse in analyses:
         for marque_mentionnee in analyse["marques_mentionnees"]:
-            if marque_mentionnee in marques_count:
-                marques_count[marque_mentionnee] += 1
-            else:
-                marques_count[marque_mentionnee] = 1
-
-    # Garder les 5 marques les plus mentionnées
-    top_marques = sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:5]
-    return {marque: count for marque, count in top_marques}
+            marques_count[marque_mentionnee] = marques_count.get(marque_mentionnee, 0) + 1
+    return dict(sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:5])
 
 # Interface Streamlit
-st.image("GRM-Nexus-16_9.png", width=200)
+st.image("SlayLLM.jpg", width=200)
 st.title("Analyse des Réponses des LLM")
 
 questions = st.text_area("Entrez vos questions (une par ligne) :")
 marque = st.text_input("Entrez la marque à analyser :")
 
 if st.button("Analyser"):
-    questions_list = questions.split('\n')
+    questions_list = [q.strip() for q in questions.split('\n') if q.strip()]
     analyses = []
 
     with st.spinner('Analyse en cours...'):
         for question in questions_list:
-            if question.strip():
-                reponse = obtenir_reponse(question)
-                analyse = analyser_reponse(reponse, marque)
-                analyses.append((question, analyse))
+            reponse = obtenir_reponse(question)
+            analyse = analyser_reponse(reponse, marque)
+            analyses.append((question, analyse))
 
     st.success("Analyse terminée !")
 
-    # Synthèse globale
-    top_marques = synthese_marques([a for q, a in analyses], marque)
+    # Synthèse des marques
+    top_marques = synthese_marques([a for _, a in analyses])
     st.write("**Synthèse des marques mentionnées :**")
-    st.bar_chart(top_marques)
+    if top_marques:
+        st.bar_chart(top_marques)
+    else:
+        st.write("Aucune marque mentionnée.")
 
     # Comparaison des sentiments
-    sentiments = comparer_sentiments([a for q, a in analyses], marque)
+    sentiments = comparer_sentiments([a for _, a in analyses], marque)
     st.write("**Comparaison des sentiments pour votre marque :**")
 
-    # Vérification des valeurs NaN
-    if any(np.isnan(list(sentiments.values()))):
-        st.error("Erreur : Les données de sentiment contiennent des valeurs manquantes.")
+    # Vérification des valeurs NaN et affichage du graphique
+    values = np.array(list(sentiments.values()))
+    if np.isnan(values).any() or values.sum() == 0:
+        st.error("Erreur : Pas de données valides pour générer un graphique.")
     else:
-        # Graphique en camembert pour les sentiments
         fig, ax = plt.subplots()
-        ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['green', 'gray', 'red'])
+        ax.pie(values, labels=sentiments.keys(), autopct='%1.1f%%', colors=['green', 'gray', 'red'])
         ax.set_title("Répartition des sentiments pour votre marque")
         st.pyplot(fig)
 
