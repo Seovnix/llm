@@ -16,16 +16,24 @@ sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual
 
 def obtenir_reponse(question):
     completion = client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": question}]
     )
     return completion.choices[0].message.content
+
+def generer_questions(marque):
+    prompt_questions = f"""Génère 5 questions pertinentes sur la marque {marque}."""
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt_questions}]
+    )
+    return completion.choices[0].message.content.split("\n")
 
 def extraire_marques(texte):
     prompt_marques = f"""Identifie les marques dans ce texte et donne moi la liste sous ce format : ["marque1", "marque2"].
     Texte : {texte}"""
     completion = client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_marques}],
         temperature=0
     )
@@ -38,7 +46,7 @@ def extraire_elements_semantiques(texte):
     prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne moi la liste sous ce format : ["prix", "taille", "qualité"].
     Texte : {texte}"""
     completion = client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_elements}],
         temperature=0
     )
@@ -48,11 +56,19 @@ def extraire_elements_semantiques(texte):
         return []
 
 def analyser_reponse(reponse, marque):
+    # Analyse de sentiment
     sentiment_result = sentiment_model(reponse)[0]
     sentiment = sentiment_result['label']
+
+    # Extraction des marques
     marques_mentionnees = extraire_marques(reponse)
+
+    # Extraction des éléments sémantiques
     elements_semantiques = extraire_elements_semantiques(reponse)
+
+    # Analyse simple pour démonstration
     mention_marque = marque.lower() in reponse.lower()
+
     return {
         "mention_marque": mention_marque,
         "sentiment": sentiment,
@@ -60,79 +76,83 @@ def analyser_reponse(reponse, marque):
         "elements_semantiques": elements_semantiques
     }
 
-def comparer_sentiments_par_marque(analyses):
-    sentiments_par_marque = {}
+def comparer_sentiments(analyses, marque):
+    sentiments = {"Very Positive": 0, "Positive": 0, "Neutral": 0, "Negative": 0, "Very Negative": 0}
     for analyse in analyses:
-        for marque in analyse["marques_mentionnees"]:
-            if marque not in sentiments_par_marque:
-                sentiments_par_marque[marque] = {"Very Negative": 0, "Negative": 0, "Neutral": 0, "Positive": 0, "Very Positive": 0}
-            sentiments_par_marque[marque][analyse["sentiment"]] += 1
-    return sentiments_par_marque
+        if marque.lower() in analyse["marques_mentionnees"]:
+            sentiments[analyse["sentiment"]] += 1
+    return sentiments
 
 def synthese_marques(analyses):
     marques_count = {}
     for analyse in analyses:
         for marque_mentionnee in analyse["marques_mentionnees"]:
-            marques_count[marque_mentionnee] = marques_count.get(marque_mentionnee, 0) + 1
-    return dict(sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:5])
+            if marque_mentionnee in marques_count:
+                marques_count[marque_mentionnee] += 1
+            else:
+                marques_count[marque_mentionnee] = 1
+
+    # Garder les 3 marques les plus mentionnées en plus de la marque principale
+    top_marques = sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:3]
+    return {marque: count for marque, count in top_marques}
 
 def synthese_elements_semantiques(analyses):
     elements_count = {}
     for analyse in analyses:
         for element in analyse["elements_semantiques"]:
-            elements_count[element] = elements_count.get(element, 0) + 1
-    return dict(sorted(elements_count.items(), key=lambda x: x[1], reverse=True)[:5])
+            if element in elements_count:
+                elements_count[element] += 1
+            else:
+                elements_count[element] = 1
+    return elements_count
 
 # Interface Streamlit
-st.image("GRM-Nexus-16_9.png", width=500)
+st.image("GRM-Nexus-16_9.png", width=200)
 st.title("Analyse des Réponses des LLM")
 
-questions = st.text_area("Entrez vos questions (une par ligne) :")
 marque = st.text_input("Entrez la marque à analyser :")
+if marque:
+    questions = generer_questions(marque)
+    st.write("**Questions générées :**")
+    for question in questions:
+        st.write(f"- {question}")
 
-if st.button("Analyser"):
-    questions_list = [q.strip() for q in questions.split('\n') if q.strip()]
-    analyses = []
+    if st.button("Analyser"):
+        analyses = []
 
-    with st.spinner('Analyse en cours...'):
-        for question in questions_list:
-            reponse = obtenir_reponse(question)
-            analyse = analyser_reponse(reponse, marque)
-            analyses.append((question, analyse))
+        with st.spinner('Analyse en cours...'):
+            for question in questions:
+                reponse = obtenir_reponse(question)
+                analyse = analyser_reponse(reponse, marque)
+                analyses.append((question, analyse))
 
-    st.success("Analyse terminée !")
+        st.success("Analyse terminée !")
 
-    # Synthèse des marques
-    top_marques = synthese_marques([a for _, a in analyses])
-    st.write("**Synthèse des marques mentionnées :**")
-    if top_marques:
+        # Synthèse globale
+        top_marques = synthese_marques([a for q, a in analyses])
+        st.write("**Synthèse des marques mentionnées :**")
         st.bar_chart(top_marques)
-    else:
-        st.write("Aucune marque mentionnée.")
 
-    # Synthèse des éléments sémantiques
-    top_elements_semantiques = synthese_elements_semantiques([a for _, a in analyses])
-    st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
-    if top_elements_semantiques:
-        st.bar_chart(top_elements_semantiques)
-    else:
-        st.write("Aucun élément sémantique mentionné.")
+        # Synthèse des éléments sémantiques
+        top_elements = synthese_elements_semantiques([a for q, a in analyses])
+        st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
+        st.bar_chart(top_elements)
 
-    # Comparaison des sentiments par marque
-    sentiments_par_marque = comparer_sentiments_par_marque([a for _, a in analyses])
-    st.write("**Synthèse du sentiment pour chaque marque :**")
-    for marque, sentiments in sentiments_par_marque.items():
-        st.write(f"**{marque}**")
-        fig, ax = plt.subplots()
-        ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['darkred', 'red', 'gray', 'lightgreen', 'green'])
-        ax.set_title(f"Sentiments pour {marque}")
-        st.pyplot(fig)
+        # Synthèse des sentiments pour la marque principale et max 3 autres marques
+        marques_a_analyser = [marque] + list(top_marques.keys())
+        for marque_analyse in marques_a_analyser:
+            sentiments = comparer_sentiments([a for q, a in analyses], marque_analyse)
+            st.write(f"**Répartition des sentiments pour {marque_analyse}**")
+            fig, ax = plt.subplots()
+            ax.pie(sentiments.values(), labels=sentiments.keys(), autopct='%1.1f%%', colors=['darkgreen', 'green', 'gray', 'orange', 'red'])
+            ax.set_title(f"Sentiments pour {marque_analyse}")
+            st.pyplot(fig)
 
-    # Affichage des analyses détaillées
-    st.write("**Détails des analyses :**")
-    for i, (question, analyse) in enumerate(analyses):
-        st.write(f"**Analyse de la question {i+1} :** {question}")
-        st.write(f"- Marque mentionnée : {'Oui' if analyse['mention_marque'] else 'Non'}")
-        st.write(f"- Sentiment : {analyse['sentiment']}")
-        st.write(f"- Marques mentionnées : {', '.join(analyse['marques_mentionnees'])}")
-        st.write(f"- Éléments sémantiques : {', '.join(analyse['elements_semantiques'])}")
+        # Affichage des analyses détaillées
+        st.write("**Détails des analyses :**")
+        for i, (question, analyse) in enumerate(analyses):
+            st.write(f"**Analyse de la question {i+1} :** {question}")
+            st.write(f"- Marque mentionnée : {'Oui' if analyse['mention_marque'] else 'Non'}")
+            st.write(f"- Sentiment : {analyse['sentiment']}")
+            st.write(f"- Marques mentionnées : {', '.join(analyse['marques_mentionnees'])}")
+            st.write(f"- Éléments sémantiques : {', '.join(analyse['elements_semantiques'])}")
