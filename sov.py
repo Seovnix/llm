@@ -226,7 +226,8 @@ elif mode == "Entrer manuellement une liste de questions":
 
         top_marques = synthese_marques([a for q, a in analyses])
         st.write("**Synthèse des marques mentionnées :**")
-        st.bar_chart(top_marques)
+        df_marques = pd.DataFrame(list(top_marques.items()), columns=["Marque", "Occurrences"])
+        st.dataframe(df_marques)
 
         top_elements = synthese_elements_semantiques([a for q, a in analyses])
         st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
