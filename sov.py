@@ -36,7 +36,7 @@ def extraire_marques(texte):
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_marques}],
-        temperature=0
+        temperature=0.2
     )
     try:
         return ast.literal_eval(completion.choices[0].message.content)
@@ -48,7 +48,7 @@ def extraire_elements_semantiques(texte):
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_elements}],
-        temperature=0
+        temperature=0.2
     )
     try:
         return ast.literal_eval(completion.choices[0].message.content)
