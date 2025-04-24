@@ -34,24 +34,31 @@ def generer_questions(marque):
 
 def extraire_marques(texte):
     prompt_marques = f"""
-    Liste-moi uniquement les noms de marques présents dans ce texte. Ignore tout ce qui n'est pas une marque.
-    Donne-moi la réponse sous forme d'une vraie liste Python : ["marque1", "marque2"]
-    Texte : {texte}
-    """
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt_marques}],
-        temperature=0
-    )
-    content = completion.choices[0].message.content
-    try:
-        marques = ast.literal_eval(content)
-        if isinstance(marques, list) and all(isinstance(m, str) for m in marques):
-            return marques
-    except Exception:
-        pass
-    return []
+Tu es un assistant qui identifie les marques dans un texte. Extrait uniquement les noms de marques connus (entreprises, produits, etc.) sous forme de liste Python.
 
+Format attendu : ["Nike", "Apple", "Samsung"]
+
+Texte :
+\"\"\"{texte}\"\"\"
+"""
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt_marques}],
+            temperature=0
+        )
+        content = completion.choices[0].message.content
+
+        # Nettoyage : extraire la liste entre crochets s’il y a du texte autour
+        match = re.search(r'\[(.*?)\]', content, re.DOTALL)
+        if match:
+            extrait = "[" + match.group(1) + "]"
+            marques = ast.literal_eval(extrait)
+            if isinstance(marques, list) and all(isinstance(m, str) for m in marques):
+                return [m.strip() for m in marques if m.strip()]
+    except Exception as e:
+        st.warning(f"Erreur lors de l'extraction des marques : {e}")
+    return []
 
 def extraire_elements_semantiques(texte):
     prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne-moi la liste sous ce format : ["prix", "taille", "qualité"].\nTexte : {texte}"""
