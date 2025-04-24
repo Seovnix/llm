@@ -24,17 +24,9 @@ def obtenir_reponse(question):
     )
     return completion.choices[0].message.content
 
-def generer_questions(marque):
-    prompt_questions = f"""Génère 3 questions associées à la marque : {marque} et 2 questions associées à son secteur."""
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt_questions}]
-    )
-    return completion.choices[0].message.content.split("\n")
-
 def extraire_marques(texte):
     prompt_marques = f"""
-Tu es un assistant qui identifie les marques dans un texte. Extrait uniquement les noms de marques connus (entreprises, produits, etc.) sous forme de liste Python.
+Tu es un assistant qui identifie les marques dans un texte. Extrait uniquement les noms de marques connues (entreprises, produits, etc.) sous forme de liste Python.
 
 Format attendu : ["Nike", "Apple", "Samsung"]
 
@@ -47,13 +39,12 @@ Texte :
             messages=[{"role": "user", "content": prompt_marques}],
             temperature=0
         )
-        content = completion.choices[0].message.content
+        content = completion.choices[0].message.content.strip()
 
-        # Nettoyage : extraire la liste entre crochets s’il y a du texte autour
-        match = re.search(r'\[(.*?)\]', content, re.DOTALL)
+        # Extraction plus tolérante de liste entre crochets
+        match = re.search(r"\[.*?\]", content, re.DOTALL)
         if match:
-            extrait = "[" + match.group(1) + "]"
-            marques = ast.literal_eval(extrait)
+            marques = ast.literal_eval(match.group())
             if isinstance(marques, list) and all(isinstance(m, str) for m in marques):
                 return [m.strip() for m in marques if m.strip()]
     except Exception as e:
