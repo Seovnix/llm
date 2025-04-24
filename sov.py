@@ -5,6 +5,7 @@ import ast
 import matplotlib.pyplot as plt
 import numpy as np
 import re
+import pandas as pd
 
 # Charger les secrets depuis le fichier secrets.toml
 openai_key = st.secrets["openai_key"]
