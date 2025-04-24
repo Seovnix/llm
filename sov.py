@@ -4,6 +4,7 @@ from transformers import pipeline
 import ast
 import matplotlib.pyplot as plt
 import numpy as np
+import re
 
 # Charger les secrets depuis le fichier secrets.toml
 openai_key = st.secrets["openai_key"]
@@ -11,8 +12,8 @@ openai_key = st.secrets["openai_key"]
 # Configuration de l'API OpenAI
 client = OpenAI(api_key=openai_key)
 
-# Charger le modèle de sentiment avec une longueur maximale
-sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual-sentiment-analysis", max_length=512, truncation=True)
+# Charger le modèle de sentiment
+sentiment_model = pipeline("sentiment-analysis", model="tabularisai/multilingual-sentiment-analysis")
 
 def obtenir_reponse(question):
     completion = client.chat.completions.create(
@@ -31,8 +32,7 @@ def generer_questions(marque):
     return completion.choices[0].message.content.split("\n")
 
 def extraire_marques(texte):
-    prompt_marques = f"""Identifie les marques dans ce texte et donne-moi la liste sous ce format : ["marque1", "marque2"].
-    Texte : {texte}"""
+    prompt_marques = f"""Identifie les marques dans ce texte et donne-moi la liste sous ce format : ["marque1", "marque2"].\nTexte : {texte}"""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_marques}],
@@ -44,8 +44,7 @@ def extraire_marques(texte):
         return []
 
 def extraire_elements_semantiques(texte):
-    prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne-moi la liste sous ce format : ["prix", "taille", "qualité"].
-    Texte : {texte}"""
+    prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne-moi la liste sous ce format : ["prix", "taille", "qualité"].\nTexte : {texte}"""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_elements}],
@@ -58,20 +57,14 @@ def extraire_elements_semantiques(texte):
 
 def analyser_reponse(reponse, marque):
     try:
-        # Analyse de sentiment
         sentiment_result = sentiment_model(reponse)[0]
         sentiment = sentiment_result['label']
     except Exception as e:
         st.error(f"Erreur lors de l'analyse de sentiment : {e}")
         sentiment = "Erreur"
 
-    # Extraction des marques
     marques_mentionnees = extraire_marques(reponse)
-
-    # Extraction des éléments sémantiques
     elements_semantiques = extraire_elements_semantiques(reponse)
-
-    # Analyse simple pour démonstration
     mention_marque = marque.lower() in reponse.lower()
 
     return {
@@ -82,7 +75,7 @@ def analyser_reponse(reponse, marque):
     }
 
 def comparer_sentiments(analyses):
-    sentiments = {"Very Positive": 0, "Positive": 0, "Neutral": 0, "Negative": 0, "Very Negative": 0}
+    sentiments = {"Very Positive": 0, "Positive": 0, "Neutral": 0, "Negative": 0, "Very Negative": 0, "Erreur": 0}
     for analyse in analyses:
         sentiments[analyse["sentiment"]] += 1
     return sentiments
@@ -91,37 +84,28 @@ def synthese_marques(analyses):
     marques_count = {}
     for analyse in analyses:
         for marque_mentionnee in analyse["marques_mentionnees"]:
-            if marque_mentionnee in marques_count:
-                marques_count[marque_mentionnee] += 1
-            else:
-                marques_count[marque_mentionnee] = 1
-
-    # Garder les 9 marques les plus mentionnées
+            marques_count[marque_mentionnee] = marques_count.get(marque_mentionnee, 0) + 1
     top_marques = sorted(marques_count.items(), key=lambda x: x[1], reverse=True)[:9]
-    return {marque: count for marque, count in top_marques}
+    return dict(top_marques)
 
 def synthese_elements_semantiques(analyses):
     elements_count = {}
     for analyse in analyses:
         for element in analyse["elements_semantiques"]:
-            if element in elements_count:
-                elements_count[element] += 1
-            else:
-                elements_count[element] = 1
-
-    # Trier les éléments sémantiques par ordre décroissant et garder le top 10
+            elements_count[element] = elements_count.get(element, 0) + 1
     top_elements = sorted(elements_count.items(), key=lambda x: x[1], reverse=True)[:10]
-    return {element: count for element, count in top_elements}
+    return dict(top_elements)
 
 def classifier_intention(question):
-    prompt_intention = f"""Classifie la question suivante dans l'une des catégories suivantes : [Recherche], [Support], [Comparaison], [Achat].
-    Question : {question}"""
+    prompt_intention = f"""Classifie la question suivante dans l'une des catégories suivantes : [Recherche], [Support], [Comparaison], [Achat].\nQuestion : {question}"""
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_intention}],
         temperature=0
     )
-    return completion.choices[0].message.content.strip()
+    output = completion.choices[0].message.content.strip()
+    match = re.search(r"\[(.*?)\]", output)
+    return match.group(1) if match else "Inconnue"
 
 def analyse_avis(marque):
     prompt_avis = f"""Donne un avis sur la marque : {marque} avec une répartition entre avantages et inconvénients. Cours et précis."""
@@ -146,7 +130,6 @@ if mode == "Entrer le nom d'une marque":
         for question in questions:
             st.write(f"- {question}")
 
-        # Permettre à l'utilisateur de modifier les questions
         st.write("**Modifier les questions :**")
         modified_questions = st.text_area("Modifiez ou ajoutez des questions (une par ligne) :", "\n".join(questions))
         modified_questions_list = modified_questions.split("\n")
@@ -163,28 +146,23 @@ if mode == "Entrer le nom d'une marque":
 
             st.success("Analyse terminée !")
 
-            # Synthèse globale
             top_marques = synthese_marques([a for q, a in analyses])
             st.write("**Synthèse des marques mentionnées :**")
             st.bar_chart(top_marques)
 
-            # Synthèse des éléments sémantiques
             top_elements = synthese_elements_semantiques([a for q, a in analyses])
             st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
             st.bar_chart(top_elements)
 
-            # Synthèse des sentiments globale
             sentiments = comparer_sentiments([a for q, a in analyses])
             st.write("**Synthèse globale des sentiments :**")
             st.bar_chart(sentiments)
 
-            # Market Share
             total_mentions = sum(top_marques.values())
             market_share = {marque: (count / total_mentions) * 100 for marque, count in top_marques.items()}
             st.write("**Market Share :**")
             st.bar_chart(market_share)
 
-            # Camembert de Market Share Distribution
             labels = list(market_share.keys())
             sizes = list(market_share.values())
             fig, ax = plt.subplots()
@@ -192,20 +170,17 @@ if mode == "Entrer le nom d'une marque":
             ax.set_title("Répartition des mentions des marques")
             st.pyplot(fig)
 
-            # Distribution des intentions
-            intentions = {"Recherche": 0, "Support": 0, "Comparaison": 0, "Achat": 0}
+            intentions = {"Recherche": 0, "Support": 0, "Comparaison": 0, "Achat": 0, "Inconnue": 0}
             for question, _ in analyses:
                 intention = classifier_intention(question)
                 intentions[intention] += 1
             st.write("**Distribution des intentions :**")
             st.bar_chart(intentions)
 
-            # Analyse des avis
             avis = analyse_avis(marque)
             st.write("**Analyse des avis :**")
             st.write(avis)
 
-            # Affichage des analyses détaillées
             st.write("**Détails des analyses :**")
             for i, (question, analyse) in enumerate(analyses):
                 st.write(f"**Analyse de la question {i+1} :** {question}")
@@ -231,28 +206,23 @@ elif mode == "Entrer manuellement une liste de questions":
 
         st.success("Analyse terminée !")
 
-        # Synthèse globale
         top_marques = synthese_marques([a for q, a in analyses])
         st.write("**Synthèse des marques mentionnées :**")
         st.bar_chart(top_marques)
 
-        # Synthèse des éléments sémantiques
         top_elements = synthese_elements_semantiques([a for q, a in analyses])
         st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
         st.bar_chart(top_elements)
 
-        # Synthèse des sentiments globale
         sentiments = comparer_sentiments([a for q, a in analyses])
         st.write("**Synthèse globale des sentiments :**")
         st.bar_chart(sentiments)
 
-        # Market Share
         total_mentions = sum(top_marques.values())
         market_share = {marque: (count / total_mentions) * 100 for marque, count in top_marques.items()}
         st.write("**Market Share :**")
         st.bar_chart(market_share)
 
-        # Camembert de Market Share Distribution
         labels = list(market_share.keys())
         sizes = list(market_share.values())
         fig, ax = plt.subplots()
@@ -260,15 +230,13 @@ elif mode == "Entrer manuellement une liste de questions":
         ax.set_title("Répartition des mentions des marques")
         st.pyplot(fig)
 
-        # Distribution des intentions
-        intentions = {"Recherche": 0, "Support": 0, "Comparaison": 0, "Achat": 0}
+        intentions = {"Recherche": 0, "Support": 0, "Comparaison": 0, "Achat": 0, "Inconnue": 0}
         for question, _ in analyses:
             intention = classifier_intention(question)
             intentions[intention] += 1
         st.write("**Distribution des intentions :**")
         st.bar_chart(intentions)
 
-        # Affichage des analyses détaillées
         st.write("**Détails des analyses :**")
         for i, (question, analyse) in enumerate(analyses):
             st.write(f"**Analyse de la question {i+1} :** {question}")
