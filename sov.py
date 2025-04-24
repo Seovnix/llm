@@ -32,16 +32,25 @@ def generer_questions(marque):
     return completion.choices[0].message.content.split("\n")
 
 def extraire_marques(texte):
-    prompt_marques = f"""Identifie les marques dans ce texte et donne-moi la liste sous ce format : ["marque1", "marque2"].\nTexte : {texte}"""
+    prompt_marques = f"""
+    Liste-moi uniquement les noms de marques présents dans ce texte. Ignore tout ce qui n'est pas une marque.
+    Donne-moi la réponse sous forme d'une vraie liste Python : ["marque1", "marque2"]
+    Texte : {texte}
+    """
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt_marques}],
-        temperature=0.2
+        temperature=0
     )
+    content = completion.choices[0].message.content
     try:
-        return ast.literal_eval(completion.choices[0].message.content)
-    except (SyntaxError, ValueError):
-        return []
+        marques = ast.literal_eval(content)
+        if isinstance(marques, list) and all(isinstance(m, str) for m in marques):
+            return marques
+    except Exception:
+        pass
+    return []
+
 
 def extraire_elements_semantiques(texte):
     prompt_elements = f"""Identifie les éléments sémantiques importants dans ce texte et donne-moi la liste sous ce format : ["prix", "taille", "qualité"].\nTexte : {texte}"""
@@ -152,7 +161,8 @@ if mode == "Entrer le nom d'une marque":
 
             top_elements = synthese_elements_semantiques([a for q, a in analyses])
             st.write("**Synthèse des éléments sémantiques les plus mentionnés :**")
-            st.bar_chart(top_elements)
+            df_elements = pd.DataFrame(list(top_elements.items()), columns=["Élément", "Occurrences"])
+            st.dataframe(df_elements)
 
             sentiments = comparer_sentiments([a for q, a in analyses])
             st.write("**Synthèse globale des sentiments :**")
