@@ -4,3 +4,4 @@ torch
 tensorflow
 tf-keras
 matplotlib
+pandas
